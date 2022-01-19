@@ -3,10 +3,9 @@
 namespace sylar
 {
     Logger::Logger(const std::string &name = "root")
+        : m_name(name)
     {
-        :m_name(name){}
     }
-
     void Logger::addAppender(LogAppender::ptr appender)
     {
         m_appenders.push_back(appender);
@@ -53,5 +52,28 @@ namespace sylar
     void Logger::fatal(LogEvent::ptr event)
     {
         log(LogLevel::FATAL, event);
+    }
+    FileLogAppender::FileLogAppender(const std::string &filename)
+    {
+    }
+    void FileLogAppender::log(LogLevel::Level level, LogEvent::ptr event)
+    {
+    }
+
+    bool FileLogAppender::reopen()
+    {
+        if (m_filestream)
+        {
+            m_filestream.close();
+        }
+        m_filestream.open(m_filename);
+        return !!m_filestream;
+    }
+    void StdoutLogAppender::log(LogLevel::Level level, LogEvent::ptr event)
+    {
+        if (m_level >= m_level)
+        {
+            std::cout << m_formatter->format(event);
+        }
     }
 }
