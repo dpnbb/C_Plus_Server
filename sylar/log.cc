@@ -110,6 +110,28 @@ namespace sylar
             os << event->getLine();
         }
     };
+    class NewLineFormatItem : public LogFormatter::FormatItem
+    {
+    public:
+        void format(std::ostream &os, std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr event) override
+        {
+            os << std::endl;
+        }
+    };
+
+    class StringFormatItem : public LogFormatter::FormatItem
+    {
+    public:
+        StringFormatItem(const std::string str)
+            : FormatItem(str), m_string(str) {}
+        void format(std::ostream &os, std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr event) override
+        {
+            os << m_string;
+        }
+
+    private:
+        std::string m_string;
+    };
 
     Logger::Logger(const std::string &name = "root")
         : m_name(name)
@@ -285,17 +307,47 @@ namespace sylar
             vec.push_back(std::make_tuple(nstr, "", 0));
         }
 
-        static std::map<std::string, std::function<FormatItem::ptr(const std::string &str)>> s_format_item;
+        static std::map<std::string, std::function<FormatItem::ptr(const std::string &str)>> s_format_items = {
+#define XX(str, C)                                                               \
+    {                                                                            \
+#str, [](const std::string &fmt) { return FormatItem::ptr(new C(fmt)); } \
+    }
 
-        //%m -- 消息体
-        //%p -- level
-        //%r -- 启动后的时间
-        //%c -- 日志名称
-        //%t -- 线程id
-        //%n -- 回车换行
-        //%d -- 时间
-        //%f -- 文件名
-        //%l -- 行号
+            XX(m, MessageFormatItem),    // m:消息
+            XX(p, LevelFormatItem),      // p:日志级别
+            XX(r, ElapseFormatItem),     // r:累计毫秒数
+            XX(c, NameFormatItem),       // c:日志名称
+            XX(t, ThreadIdFormatItem),   // t:线程id
+            XX(n, NewLineFormatItem),    // n:换行
+            XX(d, DateTimeFormatItem),   // d:时间
+            XX(f, FilenameFormatItem),   // f:文件名
+            XX(l, LineFormatItem),       // l:行号
+            XX(T, TabFormatItem),        // T:Tab
+            XX(F, FiberIdFormatItem),    // F:协程id
+            XX(N, ThreadNameFormatItem), // N:线程名称
+#undef XX
+        };
+        for (auto &i : vec)
+        {
+            if (std::get<2>(i) == 0)
+            {
+                m_items.push_back(FormatItem::ptr(new StringFormatItem(std::get<0>(i))));
+            }
+            else
+            {
+                auto it = s_format_items.find(std::get<0>(i));
+                if (it == s_format_items.end())
+                {
+                    m_items.push_back(FormatItem::ptr(new StringFormatItem("<<error_format %" + std::get<0>(i) + ">>")));
+                }
+                else
+                {
+                    m_items.push_back(it->second(std::get<1>(i)));
+                }
+            }
+
+            std::cout << std::get<0>(i) << " - " << std::get<1>(i) << " - " << std::get<2>(i) << std::endl;
+        }
     }
 
 }
